@@ -272,6 +272,11 @@ export class EdApiClient {
   // ── Files ─────────────────────────────────────────────────
 
   async uploadFileFromUrl(url: string): Promise<string> {
+    // Restrict to HTTPS to mitigate SSRF (block file://, ftp://, internal schemes)
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") {
+      throw new Error("Only https:// URLs are allowed for file uploads");
+    }
     const res = await this.request<EdFileResponse>("POST", "files/url", { url });
     return `${this.staticFileBaseUrl}${res.file.id}`;
   }
