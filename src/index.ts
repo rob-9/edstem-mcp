@@ -456,6 +456,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Fatal:", err);
+  console.error("Fatal:", err instanceof Error ? err.message : "unexpected error");
   process.exit(1);
 });
