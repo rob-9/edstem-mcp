@@ -66,10 +66,14 @@ export class EdApiClient {
 
     if (!response.ok) {
       const text = await response.text();
+      // Truncate long error bodies and redact anything that looks like a token
+      const safeBody = text
+        .slice(0, 500)
+        .replace(/Bearer\s+[^\s"]+/gi, "Bearer [REDACTED]");
       throw new EdApiError(
         response.status,
-        text,
-        `Ed API ${method} ${path} failed (${response.status}): ${text}`
+        safeBody,
+        `Ed API ${method} ${path} failed (${response.status}): ${safeBody}`
       );
     }
 
