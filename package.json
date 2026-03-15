@@ -1,0 +1,23 @@
+{
+  "name": "edstem-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Ed Discussion (edstem.org)",
+  "type": "module",
+  "bin": {
+    "edstem-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "typescript": "^5.8.3"
+  }
+}
