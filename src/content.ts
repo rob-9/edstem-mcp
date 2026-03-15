@@ -25,7 +25,7 @@ export function markdownToEdXml(text: string): string {
       i++; // skip closing ```
       const code = escapeXml(codeLines.join("\n"));
       if (lang) {
-        parts.push(`<snippet language="${lang}" runnable="false">${code}</snippet>`);
+        parts.push(`<snippet language="${escapeXml(lang)}" runnable="false">${code}</snippet>`);
       } else {
         parts.push(`<pre>${code}</pre>`);
       }
@@ -101,13 +101,15 @@ export function markdownToEdXml(text: string): string {
 }
 
 function formatInline(text: string): string {
+  // First, escape XML special characters in the raw text
+  text = escapeXml(text);
   // Inline code
   text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
   // Bold
   text = text.replace(/\*\*([^*]+)\*\*/g, "<bold>$1</bold>");
   // Italic (single *)
   text = text.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<italic>$1</italic>");
-  // Links
+  // Links — href attribute value is already XML-escaped from above
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<link href="$2">$1</link>');
   // LaTeX
   text = text.replace(/\$([^$]+)\$/g, "<math>$1</math>");
