@@ -40,7 +40,7 @@ export class EdApiClient {
     this.staticFileBaseUrl = `https://static.${region}.edusercontent.com/files/`;
   }
 
-  private async request<T>(
+  private async request<T = void>(
     method: string,
     path: string,
     body?: unknown,
@@ -88,6 +88,7 @@ export class EdApiClient {
     }
 
     const text = await response.text();
+    // Void-returning callers (lock, pin, etc.) hit this path — T defaults to void
     if (!text) return undefined as T;
     try {
       return JSON.parse(text) as T;
