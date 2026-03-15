@@ -169,27 +169,35 @@ server.tool(
 
 server.tool(
   "search_threads",
-  "Search threads in a course by title or content keywords",
+  "Search threads in a course by title, content, or category",
   {
     course_id: z.number().describe("Course ID"),
-    query: z.string().describe("Search query"),
-    limit: z.number().min(1).max(100).default(50).describe("Max results"),
+    query: z.string().describe("Search query (matches title, content, and category)"),
+    category: z.string().optional().describe("Filter by category name (exact match)"),
+    limit: z.number().min(1).max(100).default(50).describe("Max threads to fetch before filtering"),
   },
-  async ({ course_id, query, limit }) => {
+  async ({ course_id, query, category, limit }) => {
     try {
       const threads = await api.listThreads(course_id, { limit, sort: "new" });
       const q = query.toLowerCase();
-      const matches = threads.filter(
-        (t) =>
+      const matches = threads.filter((t) => {
+        if (category && t.category.toLowerCase() !== category.toLowerCase()) {
+          return false;
+        }
+        return (
           t.title.toLowerCase().includes(q) ||
+          t.category.toLowerCase().includes(q) ||
+          t.subcategory.toLowerCase().includes(q) ||
           edXmlToPlainText(t.document ?? "").toLowerCase().includes(q)
-      );
+        );
+      });
       const summary = matches.map((t) => ({
         id: t.id,
         number: t.number,
         type: t.type,
         title: t.title,
         category: t.category,
+        subcategory: t.subcategory,
         reply_count: t.reply_count,
         is_answered: t.is_answered,
         created_at: t.created_at,
@@ -455,6 +463,66 @@ server.tool(
   async ({ markdown }) => {
     return msg(markdownToEdXml(markdown));
   }
+);
+
+// ── Prompts ─────────────────────────────────────────────────
+
+server.prompt(
+  "check_assignment",
+  "Look up assignment details, requirements, and staff clarifications",
+  {
+    course: z.string().describe("Course name or code"),
+    assignment: z.string().describe("Assignment name or keyword"),
+  },
+  ({ course, assignment }) => ({
+    messages: [
+      {
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: `Look up the assignment "${assignment}" in my course "${course}". Use get_user to find the course ID, then search_threads with the assignment name (try filtering by category too, e.g. "Assignments" or "Homework"). Once you find the thread, use get_thread to read the full details including all comments. Summarize: requirements, due date, submission format, and any staff clarifications from the comments.`,
+        },
+      },
+    ],
+  })
+);
+
+server.prompt(
+  "unanswered_questions",
+  "List unresolved questions in a course",
+  {
+    course: z.string().describe("Course name or code"),
+  },
+  ({ course }) => ({
+    messages: [
+      {
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: `Find all unanswered questions in my course "${course}". Use get_user to find the course ID, then list_threads with sort "unanswered". Show me each question's title, category, when it was posted, and how many replies it has.`,
+        },
+      },
+    ],
+  })
+);
+
+server.prompt(
+  "my_activity",
+  "Show your recent posts and comments in a course",
+  {
+    course: z.string().describe("Course name or code"),
+  },
+  ({ course }) => ({
+    messages: [
+      {
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: `Show my recent activity in course "${course}". Use get_user to find my user ID and the course ID, then list_user_activity to get my recent threads and comments. Summarize what I've posted and any responses I've received.`,
+        },
+      },
+    ],
+  })
 );
 
 // ── Start ───────────────────────────────────────────────────
