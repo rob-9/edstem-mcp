@@ -3,7 +3,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { EdApiClient, EdApiError } from "./api.js";
-import { edXmlToPlainText, markdownToEdXml } from "./content.js";
+import type { EdEditThreadParams } from "./types.js";
+import { edXmlToPlainText, ensureEdXml, markdownToEdXml } from "./content.js";
 
 // ── Config ──────────────────────────────────────────────────
 
@@ -216,13 +217,12 @@ server.tool(
   },
   async ({ course_id, title, type, category, subcategory, content, is_private, is_anonymous, is_pinned }) => {
     try {
-      const xmlContent = content.startsWith("<document") ? content : markdownToEdXml(content);
       const result = await api.postThread(course_id, {
         type,
         title,
         category,
         subcategory,
-        content: xmlContent,
+        content: ensureEdXml(content),
         is_private,
         is_anonymous,
         is_pinned,
@@ -252,9 +252,9 @@ server.tool(
   },
   async ({ thread_id, content, ...rest }) => {
     try {
-      const params: Record<string, unknown> = { ...rest };
+      const params: EdEditThreadParams = { ...rest };
       if (content !== undefined) {
-        params.content = content.startsWith("<document") ? content : markdownToEdXml(content);
+        params.content = ensureEdXml(content);
       }
       const result = await api.editThread(thread_id, params);
       return ok(result);
@@ -306,8 +306,7 @@ server.tool(
   },
   async ({ thread_id, content, type, is_private, is_anonymous }) => {
     try {
-      const xmlContent = content.startsWith("<document") ? content : markdownToEdXml(content);
-      const result = await api.postComment(thread_id, xmlContent, type, {
+      const result = await api.postComment(thread_id, ensureEdXml(content), type, {
         is_private,
         is_anonymous,
       });
@@ -329,8 +328,7 @@ server.tool(
   },
   async ({ comment_id, content, is_private, is_anonymous }) => {
     try {
-      const xmlContent = content.startsWith("<document") ? content : markdownToEdXml(content);
-      const result = await api.replyToComment(comment_id, xmlContent, {
+      const result = await api.replyToComment(comment_id, ensureEdXml(content), {
         is_private,
         is_anonymous,
       });

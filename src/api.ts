@@ -46,17 +46,17 @@ export class EdApiClient {
     body?: unknown,
     params?: Record<string, string | number>
   ): Promise<T> {
-    let url = new URL(path, this.baseUrl).toString();
+    const urlObj = new URL(path, this.baseUrl);
     if (params) {
-      const searchParams = new URLSearchParams();
       for (const [k, v] of Object.entries(params)) {
-        searchParams.set(k, String(v));
+        urlObj.searchParams.set(k, String(v));
       }
-      url += `?${searchParams.toString()}`;
     }
+    const url = urlObj.toString();
 
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.token}`,
+      Accept: "application/json",
     };
     if (body) {
       headers["Content-Type"] = "application/json";
@@ -66,12 +66,18 @@ export class EdApiClient {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!response.ok) {
-      const text = await response.text();
+      let errorBody: string;
+      try {
+        errorBody = await response.text();
+      } catch {
+        errorBody = "(could not read response body)";
+      }
       // Truncate long error bodies and redact anything that looks like a token
-      const safeBody = text
+      const safeBody = errorBody
         .slice(0, 500)
         .replace(/Bearer\s+[^\s"]+/gi, "Bearer [REDACTED]");
       throw new EdApiError(
@@ -83,7 +89,15 @@ export class EdApiClient {
 
     const text = await response.text();
     if (!text) return undefined as T;
-    return JSON.parse(text) as T;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new EdApiError(
+        response.status,
+        text.slice(0, 200),
+        `Ed API ${method} ${path}: invalid JSON response`
+      );
+    }
   }
 
   // ── User ──────────────────────────────────────────────────

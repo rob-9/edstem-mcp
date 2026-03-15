@@ -101,18 +101,29 @@ export function markdownToEdXml(text: string): string {
 }
 
 function formatInline(text: string): string {
-  // First, escape XML special characters in the raw text
+  // Extract inline code spans first so their contents are not mangled by
+  // XML escaping or bold/italic/link regex transformations.
+  const codeSpans: string[] = [];
+  text = text.replace(/`([^`]+)`/g, (_match, code: string) => {
+    codeSpans.push(`<code>${escapeXml(code)}</code>`);
+    return `\x00CODE${codeSpans.length - 1}\x00`;
+  });
+
+  // Escape XML special characters in the remaining (non-code) text
   text = escapeXml(text);
-  // Inline code
-  text = text.replace(/`([^`]+)`/g, "<code>$1</code>");
-  // Bold
-  text = text.replace(/\*\*([^*]+)\*\*/g, "<bold>$1</bold>");
+
+  // Bold (non-greedy to allow single * inside bold, e.g. **2*3**)
+  text = text.replace(/\*\*(.+?)\*\*/g, "<bold>$1</bold>");
   // Italic (single *)
-  text = text.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, "<italic>$1</italic>");
-  // Links — href attribute value is already XML-escaped from above
+  text = text.replace(/(?<!\*)\*(.+?)\*(?!\*)/g, "<italic>$1</italic>");
+  // Links — href value is already XML-escaped by escapeXml above
   text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<link href="$2">$1</link>');
   // LaTeX
   text = text.replace(/\$([^$]+)\$/g, "<math>$1</math>");
+
+  // Restore code span placeholders
+  text = text.replace(/\x00CODE(\d+)\x00/g, (_match, idx: string) => codeSpans[parseInt(idx, 10)]);
+
   return text;
 }
 
@@ -122,6 +133,15 @@ function escapeXml(text: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * Returns content as Ed XML. If the input already starts with `<document`,
+ * it is returned as-is (raw XML passthrough); otherwise it is converted
+ * from markdown.
+ */
+export function ensureEdXml(content: string): string {
+  return content.startsWith("<document") ? content : markdownToEdXml(content);
 }
 
 /**
