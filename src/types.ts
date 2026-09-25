@@ -65,6 +65,8 @@ export interface EdThread {
   unique_view_count: number;
   vote_count: number;
   reply_count: number;
+  new_reply_count?: number;
+  is_seen?: boolean;
   unresolved_count: number;
   is_locked: boolean;
   is_pinned: boolean;
