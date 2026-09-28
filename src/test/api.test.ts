@@ -188,6 +188,52 @@ describe("EdApiClient requests", () => {
   });
 });
 
+describe("searchThreads", () => {
+  beforeEach(() => {
+    installMockFetch();
+    mockResponse = {
+      ok: true,
+      status: 200,
+      text: JSON.stringify({ threads: [
+        { id: 1, title: "Homework", category: "Assignments", subcategory: "Week 1", document: "<paragraph>Due Friday</paragraph>" },
+        { id: 2, title: "Help", category: "General", subcategory: "", document: "<paragraph>Homework question</paragraph>" },
+        { id: 3, title: "Notes", content: "<document><paragraph>Reading &amp; practice</paragraph></document>" },
+      ] }),
+    };
+  });
+  afterEach(() => restoreFetch());
+
+  it("fetches the requested page before filtering", async () => {
+    const matches = await new EdApiClient("tok").searchThreads(42, "homework", { limit: 25, offset: 100 });
+    const url = new URL(fetchCalls[0].url);
+    assert.equal(url.searchParams.get("limit"), "25");
+    assert.equal(url.searchParams.get("offset"), "100");
+    assert.equal(url.searchParams.get("sort"), "new");
+    assert.deepEqual(matches.map((thread) => thread.id), [1, 2]);
+  });
+
+  it("combines case-insensitive query and exact category matching", async () => {
+    const matches = await new EdApiClient("tok").searchThreads(42, "FRIDAY", { category: "assignments" });
+    assert.deepEqual(matches.map((thread) => thread.id), [1]);
+  });
+
+  it("falls back to content when the document is absent", async () => {
+    const matches = await new EdApiClient("tok").searchThreads(42, "reading & practice");
+    assert.deepEqual(matches.map((thread) => thread.id), [3]);
+  });
+
+  it("supports category-only searches and tolerates missing optional fields", async () => {
+    const matches = await new EdApiClient("tok").searchThreads(42, "", { category: "GENERAL" });
+    assert.deepEqual(matches.map((thread) => thread.id), [2]);
+  });
+
+  it("returns an empty page of matches without fetching more pages", async () => {
+    const matches = await new EdApiClient("tok").searchThreads(42, "no match");
+    assert.deepEqual(matches, []);
+    assert.equal(fetchCalls.length, 1);
+  });
+});
+
 describe("uploadFileFromUrl", () => {
   beforeEach(() => installMockFetch());
   afterEach(() => restoreFetch());

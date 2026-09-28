@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-MCP (Model Context Protocol) server that exposes the Ed Discussion (edstem.org) API to Claude and other MCP clients. It runs over stdio transport and provides 22 tools and 2 resources for interacting with Ed courses, threads, comments, and users.
+MCP (Model Context Protocol) server that exposes the Ed Discussion (edstem.org) API to Claude and other MCP clients. It runs over stdio transport and provides 24 tools, 2 resources, and 3 prompts for interacting with Ed courses, threads, comments, and users.
 
 ## Commands
 
@@ -36,4 +36,4 @@ Four source files in `src/`, ESM (`"type": "module"`), strict TypeScript:
 - Tool input schemas use `zod`; no separate validation layer.
 - Content (threads/comments) always goes through markdown→XML conversion unless it already starts with `<document`.
 - The `editThread` method in the API client fetches the current thread first, then merges changes — partial updates are supported at the tool level.
-- The `search_threads` tool does client-side filtering (fetches threads, then filters by query) rather than using a server-side search endpoint.
+- The `search_threads` tool uses `EdApiClient.searchThreads()` for client-side filtering of one page at a time. Increase `offset` by `limit` to search older threads; an empty result does not imply that later pages have no matches.

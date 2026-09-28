@@ -4,7 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { EdApiClient, EdApiError } from "./api.js";
 import type { EdEditThreadParams } from "./types.js";
-import { edXmlToPlainText, ensureEdXml, markdownToEdXml } from "./content.js";
+import { ensureEdXml, markdownToEdXml } from "./content.js";
 
 // ── Config ──────────────────────────────────────────────────
 
@@ -169,28 +169,17 @@ server.tool(
 
 server.tool(
   "search_threads",
-  "Search threads in a course by title, content, or category",
+  "Search a page of course threads by title, content, or category. Increase offset by limit to search older threads; an empty result does not mean later pages have no matches.",
   {
     course_id: z.number().describe("Course ID"),
     query: z.string().describe("Search query (matches title, content, and category)"),
     category: z.string().optional().describe("Filter by category name (exact match)"),
-    limit: z.number().min(1).max(100).default(50).describe("Max threads to fetch before filtering"),
+    limit: z.number().int().min(1).max(100).default(50).describe("Max threads to fetch before filtering"),
+    offset: z.number().int().min(0).default(0).describe("Number of threads to skip before filtering"),
   },
-  async ({ course_id, query, category, limit }) => {
+  async ({ course_id, query, category, limit, offset }) => {
     try {
-      const threads = await api.listThreads(course_id, { limit, sort: "new" });
-      const q = query.toLowerCase();
-      const matches = threads.filter((t) => {
-        if (category && t.category.toLowerCase() !== category.toLowerCase()) {
-          return false;
-        }
-        return (
-          t.title.toLowerCase().includes(q) ||
-          t.category.toLowerCase().includes(q) ||
-          t.subcategory.toLowerCase().includes(q) ||
-          edXmlToPlainText(t.document ?? "").toLowerCase().includes(q)
-        );
-      });
+      const matches = await api.searchThreads(course_id, query, { category, limit, offset });
       const summary = matches.map((t) => ({
         id: t.id,
         number: t.number,

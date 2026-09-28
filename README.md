@@ -34,7 +34,7 @@ Add to `~/.claude.json`:
 }
 ```
 
-## Tools (22)
+## Tools (24)
 
 | Tool | Description |
 |------|-------------|
@@ -62,6 +62,8 @@ Add to `~/.claude.json`:
 | `list_user_activity` | List a user's threads and comments |
 | `upload_file_from_url` | Upload a file to Ed from a URL |
 | `format_content` | Preview markdown to Ed XML conversion |
+
+`search_threads` filters one page of threads at a time, ordered newest first. Its `limit` (default 50, maximum 100) controls how many threads are fetched before filtering; `offset` (default 0) lets you search older pages. Increase `offset` by `limit` to continue searching. An empty search result can mean that page has no matches, even when older pages do; use `list_threads` at the same offset to check whether a page exists.
 
 ## Resources (2)
 
@@ -103,4 +105,4 @@ Pass raw Ed XML (starting with `<document`) to bypass conversion.
 npm test
 ```
 
-Rebuilds the TypeScript sources before running Node's built-in test runner (`node:test`). Tests cover the markdown-to-XML content converter and API client (URL construction, headers, error handling).
+Rebuilds the TypeScript sources before running Node's built-in test runner (`node:test`). Tests cover content conversion, the API client, paginated search, and MCP capability discovery and content formatting over stdio. API tests mock HTTP requests; the stdio test uses a dummy token and makes no Ed API calls.

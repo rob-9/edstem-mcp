@@ -13,6 +13,7 @@ import type {
   EdThread,
   EdUserResponse,
 } from "./types.js";
+import { edXmlToPlainText } from "./content.js";
 
 export class EdApiError extends Error {
   constructor(
@@ -132,6 +133,26 @@ export class EdApiClient {
 
   async getThread(threadId: number): Promise<EdGetThreadResponse> {
     return this.request<EdGetThreadResponse>("GET", `threads/${threadId}`);
+  }
+
+  async searchThreads(
+    courseId: number,
+    query: string,
+    opts: { limit?: number; offset?: number; category?: string } = {}
+  ): Promise<EdThread[]> {
+    const threads = await this.listThreads(courseId, {
+      limit: opts.limit ?? 50,
+      offset: opts.offset ?? 0,
+      sort: "new",
+    });
+    const q = query.toLowerCase();
+    return threads.filter((thread) => {
+      if (opts.category !== undefined && (thread.category ?? "").toLowerCase() !== opts.category.toLowerCase()) {
+        return false;
+      }
+      return [thread.title, thread.category, thread.subcategory, edXmlToPlainText(thread.document ?? thread.content ?? "")]
+        .some((value) => (value ?? "").toLowerCase().includes(q));
+    });
   }
 
   async getCourseThread(
