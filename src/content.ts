@@ -101,30 +101,35 @@ export function markdownToEdXml(text: string): string {
 }
 
 function formatInline(text: string): string {
-  // Extract inline code spans first so their contents are not mangled by
-  // XML escaping or bold/italic/link regex transformations.
-  const codeSpans: string[] = [];
-  text = text.replace(/`([^`]+)`/g, (_match, code: string) => {
-    codeSpans.push(`<code>${escapeXml(code)}</code>`);
-    return `\x00CODE${codeSpans.length - 1}\x00`;
-  });
+  // Protect literal spans and complete links before processing emphasis. Choose
+  // a marker absent from the input so user text cannot impersonate a placeholder.
+  let marker = "\x00INLINE";
+  while (text.includes(marker)) marker += "_";
+  const spans: string[] = [];
+  text = text.replace(
+    /`([^`]+)`|\$([^$]+)\$|\[([^\]]+)\]\(([^)]+)\)/g,
+    (_match, code: string | undefined, math: string | undefined, label: string, url: string) => {
+      const xml = code !== undefined
+        ? `<code>${escapeXml(code)}</code>`
+        : math !== undefined
+          ? `<math>${escapeXml(math)}</math>`
+          : `<link href="${escapeXml(url)}">${formatInline(label)}</link>`;
+      spans.push(xml);
+      return `${marker}${spans.length - 1}\x00`;
+    }
+  );
 
-  // Escape XML special characters in the remaining (non-code) text
-  text = escapeXml(text);
+  function emphasis(value: string): string {
+    return value.replace(
+      /\*\*(.+?)\*\*|(?<!\*)\*([^*]+)\*(?!\*)/g,
+      (_match, bold: string | undefined, italic: string) => bold !== undefined
+        ? `<bold>${emphasis(bold)}</bold>`
+        : `<italic>${italic}</italic>`
+    );
+  }
 
-  // Bold (non-greedy to allow single * inside bold, e.g. **2*3**)
-  text = text.replace(/\*\*(.+?)\*\*/g, "<bold>$1</bold>");
-  // Italic (single *)
-  text = text.replace(/(?<!\*)\*(.+?)\*(?!\*)/g, "<italic>$1</italic>");
-  // Links — href value is already XML-escaped by escapeXml above
-  text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<link href="$2">$1</link>');
-  // LaTeX
-  text = text.replace(/\$([^$]+)\$/g, "<math>$1</math>");
-
-  // Restore code span placeholders
-  text = text.replace(/\x00CODE(\d+)\x00/g, (_match, idx: string) => codeSpans[parseInt(idx, 10)]);
-
-  return text;
+  const formatted = emphasis(escapeXml(text));
+  return formatted.replace(new RegExp(`${marker}(\\d+)\x00`, "g"), (_match, index: string) => spans[Number(index)]);
 }
 
 function escapeXml(text: string): string {
@@ -148,11 +153,19 @@ export function ensureEdXml(content: string): string {
  * Strips XML/HTML tags from Ed document content and returns plain text.
  */
 export function edXmlToPlainText(xml: string): string {
+  const entities: Record<string, string> = {
+    amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",
+  };
   return xml
+    .replace(/<br\b[^>]*\/?\s*>|<\/(?:paragraph|heading|list-item|pre|snippet|callout)\s*>/gi, "\n")
     .replace(/<[^>]+>/g, "")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
+    .replace(/&(amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/gi, (match, entity: string) => {
+      if (!entity.startsWith("#")) return entities[entity.toLowerCase()];
+      const hex = entity[1].toLowerCase() === "x";
+      const codePoint = Number.parseInt(entity.slice(hex ? 2 : 1), hex ? 16 : 10);
+      if (codePoint <= 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)) return match;
+      return String.fromCodePoint(codePoint);
+    })
+    .replace(/\n+/g, "\n")
     .trim();
 }

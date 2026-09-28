@@ -48,6 +48,34 @@ describe("markdownToEdXml", () => {
     assert.match(result, /<math>E = mc\^2<\/math>/);
   });
 
+  it("preserves markdown characters inside math", () => {
+    assert.equal(
+      markdownToEdXml("$a*b*c < d$"),
+      '<document version="2.0"><paragraph><math>a*b*c &lt; d</math></paragraph></document>'
+    );
+  });
+
+  it("escapes link destinations without formatting their contents", () => {
+    assert.equal(
+      markdownToEdXml('[**click**](https://example.com/*a*?q=$b$&x="c")'),
+      '<document version="2.0"><paragraph><link href="https://example.com/*a*?q=$b$&amp;x=&quot;c&quot;"><bold>click</bold></link></paragraph></document>'
+    );
+  });
+
+  it("keeps literal code separate from surrounding formatting", () => {
+    assert.equal(
+      markdownToEdXml('**use `a*b`** and `$x$ [link](url)`'),
+      '<document version="2.0"><paragraph><bold>use <code>a*b</code></bold> and <code>$x$ [link](url)</code></paragraph></document>'
+    );
+  });
+
+  it("does not create crossing tags from a literal star inside bold", () => {
+    assert.equal(
+      markdownToEdXml("**2*3** and *italic*"),
+      '<document version="2.0"><paragraph><bold>2*3</bold> and <italic>italic</italic></paragraph></document>'
+    );
+  });
+
   it("converts bullet lists", () => {
     const result = markdownToEdXml("- one\n- two");
     assert.match(result, /<list style="bullet">/);
@@ -122,6 +150,17 @@ describe("edXmlToPlainText", () => {
 
   it("returns empty string for empty input", () => {
     assert.equal(edXmlToPlainText(""), "");
+  });
+
+  it("keeps block boundaries without separating inline formatting", () => {
+    assert.equal(
+      edXmlToPlainText("<paragraph>home<bold>work</bold></paragraph><paragraph>due<br/>Friday</paragraph>"),
+      "homework\ndue\nFriday"
+    );
+  });
+
+  it("decodes XML entities once, including numeric references", () => {
+    assert.equal(edXmlToPlainText("&amp;lt; &apos; &#65; &#x1F600; &#x110000;"), "&lt; ' A 😀 &#x110000;");
   });
 });
 
