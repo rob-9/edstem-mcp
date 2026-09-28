@@ -40,6 +40,12 @@ export class EdApiClient {
     this.staticFileBaseUrl = `https://static.${region}.edusercontent.com/files/`;
   }
 
+  private sanitizeErrorBody(body: string, limit: number): string {
+    // Redact before truncation so a token crossing the limit cannot leak a prefix.
+    const redacted = this.token ? body.replaceAll(this.token, "[REDACTED]") : body;
+    return redacted.replace(/Bearer\s+[^\s"'<>]+/gi, "Bearer [REDACTED]").slice(0, limit);
+  }
+
   private async request<T = void>(
     method: string,
     path: string,
@@ -76,10 +82,7 @@ export class EdApiClient {
       } catch {
         errorBody = "(could not read response body)";
       }
-      // Truncate long error bodies and redact anything that looks like a token
-      const safeBody = errorBody
-        .slice(0, 500)
-        .replace(/Bearer\s+[^\s"]+/gi, "Bearer [REDACTED]");
+      const safeBody = this.sanitizeErrorBody(errorBody, 500);
       throw new EdApiError(
         response.status,
         safeBody,
@@ -95,7 +98,7 @@ export class EdApiClient {
     } catch {
       throw new EdApiError(
         response.status,
-        text.slice(0, 200),
+        this.sanitizeErrorBody(text, 200),
         `Ed API ${method} ${path}: invalid JSON response`
       );
     }

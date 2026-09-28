@@ -151,6 +151,34 @@ describe("EdApiClient requests", () => {
     });
   });
 
+  for (const ok of [false, true]) {
+    it(`redacts credentials in ${ok ? "malformed JSON" : "HTTP error"} responses`, async () => {
+      const token = "private-api-token";
+      mockResponse = {
+        ok,
+        status: ok ? 200 : 401,
+        text: `Invalid token: ${token}; Authorization: Bearer another-secret`,
+      };
+      const client = new EdApiClient(token);
+      await assert.rejects(() => client.getUser(), (err: unknown) => {
+        assert.ok(err instanceof EdApiError);
+        assert.doesNotMatch(`${err.body} ${err.message}`, /private-api-token|another-secret/);
+        assert.match(err.body, /\[REDACTED\]/);
+        return true;
+      });
+    });
+  }
+
+  it("redacts credentials before truncating the response body", async () => {
+    mockResponse = { ok: false, status: 401, text: `${"x".repeat(495)}private-api-token` };
+    await assert.rejects(() => new EdApiClient("private-api-token").getUser(), (err: unknown) => {
+      assert.ok(err instanceof EdApiError);
+      assert.ok(err.body.length <= 500);
+      assert.doesNotMatch(err.body, /priva/);
+      return true;
+    });
+  });
+
   it("handles empty response for void endpoints", async () => {
     mockResponse = { ok: true, status: 200, text: "" };
     const client = new EdApiClient("tok", "us");
