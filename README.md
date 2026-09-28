@@ -103,4 +103,4 @@ Pass raw Ed XML (starting with `<document`) to bypass conversion.
 npm test
 ```
 
-Uses Node's built-in test runner (`node:test`). Tests cover the markdown-to-XML content converter and API client (URL construction, headers, error handling).
+Rebuilds the TypeScript sources before running Node's built-in test runner (`node:test`). Tests cover the markdown-to-XML content converter and API client (URL construction, headers, error handling).
