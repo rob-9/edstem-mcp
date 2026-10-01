@@ -123,6 +123,8 @@ server.tool(
         category: t.category,
         subcategory: t.subcategory,
         reply_count: t.reply_count,
+        new_reply_count: t.new_reply_count,
+        is_seen: t.is_seen,
         is_answered: t.is_answered,
         is_pinned: t.is_pinned,
         is_private: t.is_private,
@@ -188,6 +190,8 @@ server.tool(
         category: t.category,
         subcategory: t.subcategory,
         reply_count: t.reply_count,
+        new_reply_count: t.new_reply_count,
+        is_seen: t.is_seen,
         is_answered: t.is_answered,
         created_at: t.created_at,
       }));
