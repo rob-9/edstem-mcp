@@ -22,6 +22,11 @@ it("exposes the MCP capabilities and formats content over stdio", { timeout: 10_
       type: "integer", minimum: 0, default: 0,
       description: "Number of threads to skip before filtering",
     });
+    // Ed ignores every sort value except "new" and "trending", so only offer those.
+    const list = tools.find((tool) => tool.name === "list_threads");
+    assert.ok(list);
+    assert.deepEqual((list.inputSchema.properties?.sort as { enum?: string[] }).enum, ["new", "trending", "default"]);
+    assert.ok(list.inputSchema.properties?.unanswered_only);
     const result = await client.callTool({ name: "format_content", arguments: { markdown: "**hello**" } });
     assert.ok(!result.isError);
     assert.deepEqual(result.content, [{

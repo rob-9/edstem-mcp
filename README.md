@@ -39,7 +39,7 @@ Add to `~/.claude.json`:
 | Tool | Description |
 |------|-------------|
 | `get_user` | Get authenticated user info and enrolled courses |
-| `list_threads` | List threads in a course (sortable, paginated) |
+| `list_threads` | List threads in a course (sort: new / trending / default; optional unanswered-only filter; paginated) |
 | `get_thread` | Get thread by global ID with comments |
 | `get_course_thread` | Get thread by course-local number (the # in the UI) |
 | `search_threads` | Search threads by title, content, or category |
